@@ -69,7 +69,7 @@ main: {
     sta VIC4_CHR16_ADDR
 
 	// configure screen row length
-    lda #line_length << 1
+	lda #line_length << 1
     sta VIC4_LINESTEPLSB
     lda #line_length
     sta VIC4_CHRCOUNT
@@ -312,8 +312,70 @@ delay_loop2:
 	
 	dec drawin_delay
 	bpl delay_loop2
+	
+	// $d71c
+	// enable audio dma
+	lda #%10000000
+	sta $d711
+	
+	// reset sample
+	lda #$00
+	sta $d720
+	sta $d740
+	
+	// set sample start
+	lda #<SAMPLE
+	sta $d72a
+	sta $d74a
+	
+	lda #>SAMPLE
+	sta $d72b
+	sta $d74b
+	
+	lda #$00
+	sta $d72c
+	sta $d74c
+	
+	// set sample end
+	lda #<SAMPLE_END
+	sta $d727
+	sta $d747
+	
+	lda #>SAMPLE_END
+	sta $d728
+	sta $d748
+	
+	// the frequency calculation
+	//
+	// @gardners:
+	// so 44K1 = ( 44100 x 2^24 ) / ( 40.5 x 10^6 )
+	// 40.5 * 10 ^ 6 = 40,500,000 (of course)
+	// = 18269
+	// = $00475D, assuming I got it right.
+	//
+	// 8KHz = 8000 x 2 ^ 24 = 134,217,728,000
+	// That / 40.5M = 3314.0179753086419753086419753086
+	// = $000cf2
+	
+	lda #$f2
+	sta $d724
+	sta $d744
+	
+	lda #$0c
+	sta $d725
+	sta $d745
+	
+	// set the volume
+	lda #$ff
+	sta $d729
+	sta $d749
+	
+	lda #%10100010
+	sta $d720
+	sta $d740
 
 !:
+	lda #$00
 	bra !-
 	
 	// drawin should take 0.7 seconds - which conviently works out to round 
@@ -475,3 +537,8 @@ CLUT:
 CHARSET:
 	.const charset = LoadBinary("../assets/logo.chrs")
 	.fill charset.getSize(), charset.get(i)
+
+SAMPLE:
+	.const sample = LoadBinary("../assets/8x8_mega.raw")
+	.fill sample.getSize(), sample.get(i)
+SAMPLE_END:
