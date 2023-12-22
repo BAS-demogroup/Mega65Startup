@@ -18,6 +18,14 @@
 	.const line_count =  25
 	.const base_char = CHARSET / $40
 	.const zp = $02
+	// TODO: Add in a customizable delay constant
+	
+	// mega sample constant values
+	// 00. Senfsosse's Aid
+	// 01. Angry 64 Boss
+	// 02. Angry Boss
+	// 03. Dutch 8-bit Bicycle
+	.const sample_id = 1
 
 .print "$" + toHexString(base_char)
 	
@@ -39,7 +47,7 @@ main: {
 	
 	lda	#$1a
 	sta	matrix_raster
-	lda	#$02
+	lda	#$01
 	sta	matrix_raster + 1
 	
 	lda #VIC4_PALNTSC_MASK
@@ -194,7 +202,10 @@ delay_loop:
 !:	
     cpx VIC4_FNRASTERLSB
     bne !-
-	bit VIC4_FN_RASTER_MSB_ADDR
+    //bit VIC4_FN_RASTER_MSB_ADDR
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 2
 	bne !-
 
 	inx
@@ -225,16 +236,16 @@ drawin_loop:
 	jsr supersaw
 	
     ldx matrix_raster
-    lda matrix_raster + 1
+    //lda matrix_raster + 1
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    bit VIC4_FN_RASTER_MSB_ADDR
+    //bit VIC4_FN_RASTER_MSB_ADDR
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 1
     bne !-
-	
-	lda #$03
-	sta $d020
 	
 	lda #VIC2_BLNK_MASK
 	trb VIC2_BLNK_ADDR
@@ -245,15 +256,16 @@ drawin_loop:
 	tax
     lda matrix_raster + 1
 	adc #$00
+	sta matrix_raster + 2
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    bit VIC4_FN_RASTER_MSB_ADDR
+    //bit VIC4_FN_RASTER_MSB_ADDR
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 2
     bne !-
-	
-	lda #$00
-	sta $d020
 	
 	lda #VIC2_BLNK_MASK
 	tsb VIC2_BLNK_ADDR
@@ -298,7 +310,10 @@ delay_loop2:
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    bit VIC4_FN_RASTER_MSB_ADDR
+    //bit VIC4_FN_RASTER_MSB_ADDR
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 2
     bne !-
 	
 	clc
@@ -307,11 +322,15 @@ delay_loop2:
 	tax
     lda matrix_raster + 1
 	adc #$00
+	sta matrix_raster + 2
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    bit VIC4_FN_RASTER_MSB_ADDR
+    //bit VIC4_FN_RASTER_MSB_ADDR
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 2
     bne !-
 	
 	dec drawin_delay
@@ -425,6 +444,7 @@ supersaw: {
 .segment Data
 matrix_raster:
 	.word $0000
+	.byte $00
 	
 drawin_index:
 	.byte $00
@@ -543,6 +563,20 @@ CHARSET:
 	.fill charset.getSize(), charset.get(i)
 
 SAMPLE:
+.if (sample_id == 0) {
 	.const sample = LoadBinary("../assets/8x8_mega.raw")
 	.fill sample.getSize(), sample.get(i)
+}
+.if (sample_id == 1) {
+	.const sample = LoadBinary("../assets/voc_mega_c64_angry_boss.raw")
+	.fill sample.getSize(), sample.get(i)
+}
+.if (sample_id == 2) {
+	.const sample = LoadBinary("../assets/voc_mega_angry_boss.raw")
+	.fill sample.getSize(), sample.get(i)
+}
+.if (sample_id == 3) {
+	.const sample = LoadBinary("../assets/voc_mega_c64_8bitcycle.raw")
+	.fill sample.getSize(), sample.get(i)
+}
 SAMPLE_END:
