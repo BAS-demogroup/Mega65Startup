@@ -37,9 +37,9 @@ main: {
 	and	#VIC4_PALNTSC_MASK
 	bne	!+
 	
-	lda	#$18
+	lda	#$1a
 	sta	matrix_raster
-	lda	#$01
+	lda	#$02
 	sta	matrix_raster + 1
 	
 	lda #VIC4_PALNTSC_MASK
@@ -56,6 +56,12 @@ main: {
 	tsb VIC4_PALNTSC_ADDR
 
 !:
+	// disable raster interrupts
+	lda #VIC4_FNRST_MASK
+	trb VIC4_FNRST_ADDR
+	
+	//sta VIC4_FNRST_CMP_ADDR
+	
 	// disable 640 horizontal width
 	lda #VIC3_H640_MASK
 	trb VIC3_H640_ADDR
@@ -184,25 +190,19 @@ main: {
 	
 delay_loop:
     ldx matrix_raster
-    ldy matrix_raster + 1
-!:	    
+    lda matrix_raster + 1
+!:	
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
-    bne !-
-	
-	clc
-    lda matrix_raster
-	adc #$2a
-	tax
-    lda matrix_raster + 1
-	adc #$00
-	tay
+	bit VIC4_FN_RASTER_MSB_ADDR
+	bne !-
+
+	inx
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
+    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
 	dec drawin_delay
@@ -225,15 +225,18 @@ drawin_loop:
 	jsr supersaw
 	
     ldx matrix_raster
-    ldy matrix_raster + 1
-	lda #VIC2_BLNK_MASK
+    lda matrix_raster + 1
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
+    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
+	lda #$03
+	sta $d020
+	
+	lda #VIC2_BLNK_MASK
 	trb VIC2_BLNK_ADDR
 	
 	clc
@@ -242,15 +245,17 @@ drawin_loop:
 	tax
     lda matrix_raster + 1
 	adc #$00
-	tay
-	lda #VIC2_BLNK_MASK
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
+    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
+	lda #$00
+	sta $d020
+	
+	lda #VIC2_BLNK_MASK
 	tsb VIC2_BLNK_ADDR
 
 	
@@ -289,11 +294,11 @@ drawin_loop:
 	
 delay_loop2:
     ldx matrix_raster
-    ldy matrix_raster + 1
+    lda matrix_raster + 1
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
+    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
 	clc
@@ -302,12 +307,11 @@ delay_loop2:
 	tax
     lda matrix_raster + 1
 	adc #$00
-	tay
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    cpy VIC4_FN_RASTER_MSB_ADDR
+    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
 	dec drawin_delay
