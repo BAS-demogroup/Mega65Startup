@@ -1,5 +1,6 @@
+// original intro by deathy and spairhead under the unlicense
 .cpu _45gs02
-  // MEGA65 platform PRG executable starting in MEGA65 mode.
+// MEGA65 platform PRG executable starting in MEGA65 mode.
 .file [name="startup.prg", type="prg", segments="Program"]
 
 #import "global_functions.asm"
@@ -172,7 +173,7 @@ main: {
 	sta $d46b
 	sta $d472
 
-	lda #$0f
+	lda #$07
 	sta $d418
 	sta $d438
 	sta $d458
@@ -202,7 +203,6 @@ delay_loop:
 !:	
     cpx VIC4_FNRASTERLSB
     bne !-
-    //bit VIC4_FN_RASTER_MSB_ADDR
 	lda VIC4_FN_RASTER_MSB_ADDR
 	and #$07
 	cmp matrix_raster + 2
@@ -212,8 +212,6 @@ delay_loop:
 		
 !:	    
     cpx VIC4_FNRASTERLSB
-    bne !-
-    bit VIC4_FN_RASTER_MSB_ADDR
     bne !-
 	
 	dec drawin_delay
@@ -236,12 +234,10 @@ drawin_loop:
 	jsr supersaw
 	
     ldx matrix_raster
-    //lda matrix_raster + 1
 		
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    //bit VIC4_FN_RASTER_MSB_ADDR
 	lda VIC4_FN_RASTER_MSB_ADDR
 	and #$07
 	cmp matrix_raster + 1
@@ -261,7 +257,6 @@ drawin_loop:
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    //bit VIC4_FN_RASTER_MSB_ADDR
 	lda VIC4_FN_RASTER_MSB_ADDR
 	and #$07
 	cmp matrix_raster + 2
@@ -310,27 +305,15 @@ delay_loop2:
 !:	    
     cpx VIC4_FNRASTERLSB
     bne !-
-    //bit VIC4_FN_RASTER_MSB_ADDR
 	lda VIC4_FN_RASTER_MSB_ADDR
 	and #$07
 	cmp matrix_raster + 2
     bne !-
-	
-	clc
-    lda matrix_raster
-	adc #$2a
-	tax
-    lda matrix_raster + 1
-	adc #$00
-	sta matrix_raster + 2
+
+	inx
 		
 !:	    
     cpx VIC4_FNRASTERLSB
-    bne !-
-    //bit VIC4_FN_RASTER_MSB_ADDR
-	lda VIC4_FN_RASTER_MSB_ADDR
-	and #$07
-	cmp matrix_raster + 2
     bne !-
 	
 	dec drawin_delay
@@ -379,27 +362,63 @@ delay_loop2:
 	// 8KHz = 8000 x 2 ^ 24 = 134,217,728,000
 	// That / 40.5M = 3314.0179753086419753086419753086
 	// = $000cf2
+	//
+	// but now, let us try 11KHz to see if that is the bug
+	//
+	// 11KHz = 11000 x 2 ^ 24 = 184,549,376,000
+	// That / 40.5M = 4556.7747160493827160493827160494
+	// = $0011cd
 	
-	lda #$f2
+	lda #$cd
 	sta $d724
 	sta $d744
 	
-	lda #$0c
+	lda #$11
 	sta $d725
 	sta $d745
 	
 	// set the volume
-	lda #$ff
+	lda #$41
 	sta $d729
 	sta $d749
 	
+	// and play
 	lda #%10100010
 	sta $d720
 	sta $d740
+	
+	ldy #$b4
+	
+sample_wait:
+    ldx matrix_raster
+    cpx VIC4_FNRASTERLSB
+    bne sample_wait
+	lda VIC4_FN_RASTER_MSB_ADDR
+	and #$07
+	cmp matrix_raster + 1
+	bne sample_wait
 
-!:
-	lda #$00
-	bra !-
+	inx
+		
+!:	
+	lda matrix_raster + 1
+    cpx VIC4_FNRASTERLSB
+    bne !-
+	
+	dey
+	bne sample_wait
+	
+	// bra inf
+	lda $d720
+	bit #%10000000
+	bpl sample_wait
+	
+	lda #%00010000
+	trb $d011
+
+	run_dma_job(stub_to_screen_dma)
+	
+	jmp $0800
 	
 	// drawin should take 0.7 seconds - which conviently works out to round 
 	// numbers in both NTSC and PAL.  In NTSC, that is 42 frames, and in PAL,
@@ -425,6 +444,19 @@ supersaw: {
 	
 	rts
 }
+
+next_program: {
+	run_dma_job(move_next_prog_dma)
+
+	lda #%00010000
+	tsb $d011
+	
+	jmp $2011
+	
+move_next_prog_dma:
+	dma_copy_job(SAMPLE_END, $2001, NEXT_PROG_END - SAMPLE_END, false, false, false, false)
+}
+next_program_end:
 
 .macro supersaw_ctl (val) {
 	ldx #$0b
@@ -506,6 +538,8 @@ frequencies_sid_reg_ctl:
 	
 load_color_palette_dma:
 	dma_copy_job(CLUT, VIC3_PALRED, $300, false, false, false, true)
+stub_to_screen_dma:
+	dma_copy_job(next_program, $800, next_program_end - next_program, false, false, false, false)
 	
 fill_attribute_map:
 	.byte $0a
@@ -580,3 +614,8 @@ SAMPLE:
 	.fill sample.getSize(), sample.get(i)
 }
 SAMPLE_END:
+
+.const next_prog = LoadBinary("../assets/next_prog.prg")
+.fill next_prog.getSize() - 2, next_prog.get(i + 2)
+
+NEXT_PROG_END:
